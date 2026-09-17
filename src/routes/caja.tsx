@@ -26,7 +26,7 @@ export const Route = createFileRoute("/caja")({
 });
 
 function hora(ts: number) {
-  return new Date(ts).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
 function OrderRow({ order }: { order: Order }) {
