@@ -62,7 +62,7 @@ function OrderRow({ order }: { order: Order }) {
   const anulada = order.status === "anulada";
 
   return (
-    <div className={`rounded-xl border bg-card ${anulada ? "border-destructive/40 opacity-70" : "border-border"}`}>
+    <div className={`rounded-xl border ${anulada ? "border-destructive/50 bg-destructive/5" : "border-border bg-card"}`}>
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 p-3 text-left">
         <span className="min-w-0 flex-1 truncate text-2xl font-black">
           #{String(order.number).padStart(3, "0")}
@@ -198,7 +198,7 @@ function CajaPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-black">CAJA · JORNADA {selectedSession?.label}</h1>
-          {selectedSession?.closedAt !== null && (
+          {selectedSession && selectedSession.closedAt !== null && (
             <span className="mt-1 inline-flex rounded-md bg-muted px-2 py-1 text-xs font-black text-muted-foreground">
               JORNADA CERRADA
             </span>
