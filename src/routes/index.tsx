@@ -100,7 +100,7 @@ function VentaPage() {
     );
 
   return (
-    <div className="grid gap-3 p-3 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
       <section className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-xl bg-primary/10 px-4 py-2">
@@ -171,35 +171,41 @@ function VentaPage() {
               <p className="py-8 text-center text-sm text-muted-foreground">Tocá un producto para agregarlo.</p>
             )}
             {lines.map((l) => (
-              <div key={l.productId} className="flex items-center gap-2 rounded-lg bg-muted/60 p-2">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-bold">{l.name}</div>
-                  <div className="text-xs text-muted-foreground">{formatMoney(l.unitPrice)} c/u</div>
+            <div key={l.productId} className="flex items-center gap-2 rounded-lg bg-muted/60 p-2">
+              <div className="min-w-0 flex-1">
+                <div className="line-clamp-2 break-words text-sm font-bold leading-snug">
+                  {l.name}
                 </div>
+                <div className="text-xs text-muted-foreground">{formatMoney(l.unitPrice)} c/u</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
                 <button
                   onClick={() => changeQty(l.productId, -1)}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-background"
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-background"
                   aria-label={`Quitar uno de ${l.name}`}
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-7 text-center text-xl font-black">{l.quantity}</span>
+                <span className="w-6 text-center text-lg font-black">{l.quantity}</span>
                 <button
                   onClick={() => changeQty(l.productId, 1)}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-background"
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-background"
                   aria-label={`Agregar uno de ${l.name}`}
                 >
                   <Plus className="h-4 w-4" />
                 </button>
-                <span className="w-20 text-right font-bold">{formatMoney(l.unitPrice * l.quantity)}</span>
-                <button
-                  onClick={() => setLines((prev) => prev.filter((x) => x.productId !== l.productId))}
-                  className="grid h-9 w-9 place-items-center rounded-lg text-destructive"
-                  aria-label={`Eliminar ${l.name}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
               </div>
+              <span className="w-24 shrink-0 text-right font-bold tabular-nums">
+                {formatMoney(l.unitPrice * l.quantity)}
+              </span>
+              <button
+                onClick={() => setLines((prev) => prev.filter((x) => x.productId !== l.productId))}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-destructive"
+                aria-label={`Eliminar ${l.name}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
             ))}
           </div>
           <div className="mt-3 flex items-baseline justify-between border-t border-border pt-3">
