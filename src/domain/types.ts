@@ -30,6 +30,7 @@ export interface Session {
   openedAt: number;
   closedAt: number | null;
   label: string;
+  mock?: boolean; // TEMPORAL: marca datos de testing
 }
 
 export type PaymentMethod = "efectivo" | "debito";
@@ -48,6 +49,7 @@ export interface Order {
   voidReason: string | null;
   printed: boolean;
   printCount: number;
+  mock?: boolean; // TEMPORAL: marca datos de testing
 }
 
 export interface OrderItem {
@@ -58,6 +60,7 @@ export interface OrderItem {
   unitPriceSnapshot: number; // centésimos
   quantity: number;
   lineTotal: number; // centésimos
+  mock?: boolean; // TEMPORAL: marca datos de testing
 }
 
 export interface AppSettings {
