@@ -171,7 +171,7 @@ function VentaPage() {
               <p className="py-8 text-center text-sm text-muted-foreground">Tocá un producto para agregarlo.</p>
             )}
             {lines.map((l) => (
-            <div key={l.productId} className="flex items-center gap-2 rounded-lg bg-muted/60 p-2">
+            <div key={l.productId} className="flex items-center gap-1.5 rounded-lg bg-muted/60 p-1.5">
               <div className="min-w-0 flex-1">
                 <div className="line-clamp-2 break-words text-sm font-bold leading-snug">
                   {l.name}
@@ -186,7 +186,7 @@ function VentaPage() {
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-6 text-center text-lg font-black">{l.quantity}</span>
+                <span className="w-5 text-center text-lg font-black">{l.quantity}</span>
                 <button
                   onClick={() => changeQty(l.productId, 1)}
                   className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-background"
@@ -195,7 +195,7 @@ function VentaPage() {
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              <span className="w-24 shrink-0 text-right font-bold tabular-nums">
+              <span className="w-20 shrink-0 text-right font-bold tabular-nums">
                 {formatMoney(l.unitPrice * l.quantity)}
               </span>
               <button
