@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useApp } from "@/app/store";
 import { PinGate } from "@/components/PinGate";
 import { repository, validateBackup } from "@/persistence/indexeddb-repository";
+import { deleteMockData, generateMockData } from "@/dev/mock-data";
 
 export const Route = createFileRoute("/ajustes")({
   head: () => ({
@@ -165,6 +166,42 @@ function AjustesPage() {
         <h2 className="font-black text-foreground">Información</h2>
         <p>FOGA Eventos · Etapa 1 (web offline)</p>
         <p>Datos locales en este equipo · Impresión simulada</p>
+      </section>
+
+      <section className="space-y-3 rounded-xl border-2 border-dashed border-amber-500 bg-amber-500/5 p-4">
+        <h2 className="font-black text-amber-700">HERRAMIENTAS DE DESARROLLO / TESTING</h2>
+        <p className="text-sm text-muted-foreground">
+          Sección temporal. Solo afecta registros marcados internamente como MOCK/TEST. Debe retirarse antes de
+          entregar la aplicación al cliente.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={async () => {
+              if (!confirm("¿Generar el conjunto de datos MOCK de testing (3 jornadas de prueba)?")) return;
+              try {
+                const r = await generateMockData();
+                await refresh();
+                toast.success(`Mock: ${r.sessions} jornadas y ${r.orders} pedidos de prueba`);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "No se pudieron generar los datos mock");
+              }
+            }}
+            className="rounded-lg border border-amber-600 px-4 py-3 font-bold text-amber-700"
+          >
+            GENERAR DATOS MOCK
+          </button>
+          <button
+            onClick={async () => {
+              if (!confirm("¿Borrar EXCLUSIVAMENTE los datos identificados como MOCK/TEST? Los datos reales se conservan.")) return;
+              const r = await deleteMockData();
+              await refresh();
+              toast.success(`Mock borrado: ${r.sessions} jornadas, ${r.orders} pedidos, ${r.items} ítems`);
+            }}
+            className="rounded-lg border border-destructive px-4 py-3 font-bold text-destructive"
+          >
+            BORRAR DATOS MOCK
+          </button>
+        </div>
       </section>
     </div>
   );
