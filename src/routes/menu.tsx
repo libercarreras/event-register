@@ -69,7 +69,6 @@ function MenuPage() {
 
   function cancelEdit() {
     setEditingId(null);
-eceditName("");
   }
 
   async function saveEdit(p: Product) {
