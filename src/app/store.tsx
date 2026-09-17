@@ -119,8 +119,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const printOrder = useCallback(
     async (orderId: string, reprintFlag: boolean) => {
       const width = settings?.ticketWidthMm ?? 58;
-      const all = await repository.listOrders(session?.id ?? "");
-      const order = all.find((o) => o.id === orderId);
+      const sessions = await repository.listSessions();
+      let order: Order | undefined;
+      for (const candidate of sessions) {
+        const candidateOrders = await repository.listOrders(candidate.id);
+        order = candidateOrders.find((item) => item.id === orderId);
+        if (order) break;
+      }
       if (!order) return false;
       const items = await repository.listOrderItems(orderId);
       const ticket = buildKitchenTicket(order, items, width, reprintFlag);
@@ -128,7 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await repository.markPrinted(orderId, result.ok);
       return result.ok;
     },
-    [session, settings],
+    [settings],
   );
 
   const confirmSale = useCallback(
