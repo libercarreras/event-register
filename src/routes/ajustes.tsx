@@ -67,15 +67,13 @@ function AjustesPage() {
           <input
             type="checkbox"
             checked={settings.pinEnabled}
-            onChange={(e) =>
-              void saveSettings({
-                ...settings,
-                pinEnabled: e.target.checked && !!settings.pinCode,
-                ...(e.target.checked && !settings.pinCode ? {} : {}),
-              }).then(() => {
-                if (e.target.checked && !settings.pinCode) toast.error("Definí primero un PIN");
-              })
-            }
+            onChange={(e) => {
+              if (e.target.checked && !settings.pinCode) {
+                toast.error("Definí primero un PIN");
+                return;
+              }
+              void saveSettings({ ...settings, pinEnabled: e.target.checked });
+            }}
             className="h-5 w-5"
           />
           <span className="font-bold">Proteger Menú, Caja, anulaciones y Ajustes</span>
