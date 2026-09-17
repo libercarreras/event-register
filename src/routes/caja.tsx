@@ -1,13 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Ban, ChevronDown, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/app/store";
 import { formatMoney } from "@/domain/money";
-import type { Order, OrderItem } from "@/domain/types";
+import type { Order, OrderItem, Session, SessionTotals } from "@/domain/types";
 import { repository } from "@/persistence/indexeddb-repository";
 import { PinGate } from "@/components/PinGate";
 import { TicketPreview } from "@/components/TicketPreview";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/caja")({
   head: () => ({
@@ -29,6 +48,8 @@ function hora(ts: number) {
   return new Date(ts).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
+const EMPTY_TOTALS: SessionTotals = { efectivo: 0, debito: 0, total: 0, orders: 0, anuladas: 0 };
+
 function OrderRow({ order }: { order: Order }) {
   const { reprint, voidOrder, lastTicket } = useApp();
   const [open, setOpen] = useState(false);
@@ -43,8 +64,10 @@ function OrderRow({ order }: { order: Order }) {
   return (
     <div className={`rounded-xl border bg-card ${anulada ? "border-destructive/40 opacity-70" : "border-border"}`}>
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 p-3 text-left">
-        <span className="text-2xl font-black">#{String(order.number).padStart(3, "0")}</span>
-        <span className="min-w-0 flex-1 truncate font-bold">{order.customerName ?? "—"}</span>
+        <span className="min-w-0 flex-1 truncate text-2xl font-black">
+          #{String(order.number).padStart(3, "0")}
+          {order.customerName ? <span className="font-bold"> — {order.customerName}</span> : null}
+        </span>
         <span className="text-sm text-muted-foreground">{hora(order.createdAt)}</span>
         <span className="rounded-md bg-muted px-2 py-1 text-xs font-bold uppercase">{order.paymentMethod}</span>
         <span
@@ -64,6 +87,11 @@ function OrderRow({ order }: { order: Order }) {
       </button>
       {open && (
         <div className="space-y-2 border-t border-border p-3">
+          {anulada && order.voidReason && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">
+              Motivo de anulación: {order.voidReason}
+            </p>
+          )}
           <ul className="space-y-1">
             {items.map((i) => (
               <li key={i.id} className="flex justify-between text-sm">
@@ -107,45 +135,138 @@ function OrderRow({ order }: { order: Order }) {
 }
 
 function CajaPage() {
-  const { session, orders, totals, closeSession, openSession, ready } = useApp();
+  const { session, orders: currentOrders, totals: currentTotals, closeSession, openSession, ready } = useApp();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  const [historicalOrders, setHistoricalOrders] = useState<Order[]>([]);
+  const [historicalTotals, setHistoricalTotals] = useState<SessionTotals>(EMPTY_TOTALS);
+
+  useEffect(() => {
+    let active = true;
+    void repository.listSessions().then((allSessions) => {
+      if (!active) return;
+      setSessions(allSessions);
+      setSelectedSessionId((selected) => {
+        if (selected && allSessions.some((item) => item.id === selected)) return selected;
+        return session?.id ?? allSessions[0]?.id ?? "";
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [session, currentOrders, currentTotals]);
+
+  const selectedSession = useMemo(
+    () => sessions.find((item) => item.id === selectedSessionId) ?? null,
+    [sessions, selectedSessionId],
+  );
+  const viewingCurrent = Boolean(session && selectedSessionId === session.id);
+
+  useEffect(() => {
+    if (!selectedSessionId || viewingCurrent) return;
+    let active = true;
+    void Promise.all([
+      repository.listOrders(selectedSessionId),
+      repository.sessionTotals(selectedSessionId),
+    ]).then(([orderList, sessionTotals]) => {
+      if (!active) return;
+      setHistoricalOrders(orderList);
+      setHistoricalTotals(sessionTotals);
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedSessionId, viewingCurrent, currentOrders, currentTotals]);
+
+  const displayedOrders = viewingCurrent ? currentOrders : historicalOrders;
+  const displayedTotals = viewingCurrent ? currentTotals : historicalTotals;
 
   if (!ready) return <div className="p-8 text-muted-foreground">Cargando…</div>;
 
-  if (!session)
+  if (!session && sessions.length === 0)
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
         <p className="text-lg font-bold">No hay una jornada abierta.</p>
-        <button
-          onClick={() => void openSession()}
-          className="rounded-xl bg-primary px-6 py-3 font-black text-primary-foreground"
-        >
+        <Button onClick={() => void openSession()} size="lg" className="font-black">
           ABRIR JORNADA
-        </button>
+        </Button>
       </div>
     );
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-black">CAJA · JORNADA {session.label}</h1>
-        <button
-          onClick={async () => {
-            if (!confirm("¿Cerrar la jornada? Se conservan todas las ventas y la próxima empieza en #001.")) return;
-            await closeSession();
-            toast.success("Jornada cerrada");
-          }}
-          className="rounded-lg border border-destructive px-4 py-2 font-bold text-destructive"
-        >
-          CERRAR JORNADA
-        </button>
+        <div>
+          <h1 className="text-2xl font-black">CAJA · JORNADA {selectedSession?.label}</h1>
+          {selectedSession?.closedAt !== null && (
+            <span className="mt-1 inline-flex rounded-md bg-muted px-2 py-1 text-xs font-black text-muted-foreground">
+              JORNADA CERRADA
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
+            <SelectTrigger className="w-56 bg-card font-semibold" aria-label="Seleccionar jornada">
+              <SelectValue placeholder="Seleccionar jornada" />
+            </SelectTrigger>
+            <SelectContent>
+              {sessions.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.closedAt === null ? `Jornada actual · ${item.label}` : item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!session && (
+            <Button onClick={() => void openSession()} className="font-black">
+              ABRIR JORNADA
+            </Button>
+          )}
+          {viewingCurrent && selectedSession && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="border-destructive font-bold text-destructive hover:text-destructive">
+                  CERRAR JORNADA
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>JORNADA {selectedSession.label}</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2 pt-2 text-foreground">
+                      <div className="flex justify-between"><span>Efectivo:</span><strong>{formatMoney(displayedTotals.efectivo)}</strong></div>
+                      <div className="flex justify-between"><span>Débito:</span><strong>{formatMoney(displayedTotals.debito)}</strong></div>
+                      <div className="flex justify-between border-t border-border pt-2"><span>Total:</span><strong>{formatMoney(displayedTotals.total)}</strong></div>
+                      <div className="flex justify-between"><span>Pedidos válidos:</span><strong>{displayedTotals.orders}</strong></div>
+                      <div className="flex justify-between"><span>Anulados:</span><strong>{displayedTotals.anuladas}</strong></div>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      await closeSession();
+                      toast.success("Jornada cerrada");
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Confirmar cierre
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {[
-          ["EFECTIVO", formatMoney(totals.efectivo)],
-          ["DÉBITO", formatMoney(totals.debito)],
-          ["TOTAL", formatMoney(totals.total)],
-          ["PEDIDOS", String(totals.orders)],
+          ["EFECTIVO", formatMoney(displayedTotals.efectivo)],
+          ["DÉBITO", formatMoney(displayedTotals.debito)],
+          ["TOTAL", formatMoney(displayedTotals.total)],
+          ["PEDIDOS", String(displayedTotals.orders)],
+          ["ANULADOS", String(displayedTotals.anuladas)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border border-border bg-card p-3">
             <div className="text-xs font-black text-muted-foreground">{label}</div>
@@ -153,15 +274,10 @@ function CajaPage() {
           </div>
         ))}
       </div>
-      {totals.anuladas > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {totals.anuladas} pedido(s) anulado(s) — excluidos de los totales, conservados en el historial.
-        </p>
-      )}
 
       <div className="space-y-2">
-        {orders.length === 0 && <p className="py-8 text-center text-muted-foreground">Aún no hay ventas.</p>}
-        {orders.map((o) => (
+        {displayedOrders.length === 0 && <p className="py-8 text-center text-muted-foreground">Aún no hay ventas.</p>}
+        {displayedOrders.map((o) => (
           <OrderRow key={o.id} order={o} />
         ))}
       </div>
