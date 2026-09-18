@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+﻿const { app, BrowserWindow, ipcMain } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
@@ -42,14 +42,29 @@ function waitForServer(url, timeoutMs = 15000) {
   });
 }
 
-function startLocalServer() {
-  const serverEntry = path.join(
+function getServerEntry() {
+  if (app.isPackaged) {
+    return path.join(
+      process.resourcesPath,
+      ".output",
+      "server",
+      "index.mjs"
+    );
+  }
+
+  return path.join(
     __dirname,
     "..",
     ".output",
     "server",
     "index.mjs"
   );
+}
+
+function startLocalServer() {
+  const serverEntry = getServerEntry();
+
+  console.log("[FOGA] Servidor:", serverEntry);
 
   serverProcess = spawn(process.execPath, [serverEntry], {
     env: {
@@ -62,11 +77,15 @@ function startLocalServer() {
     windowsHide: true,
   });
 
-  serverProcess.on("exit", () => {
+  serverProcess.on("error", (error) => {
+    console.error("[FOGA] Error iniciando servidor:", error);
+  });
+
+  serverProcess.on("exit", (code, signal) => {
+    console.log("[FOGA] Servidor finalizado:", code, signal);
     serverProcess = null;
   });
 }
-
 function stopLocalServer() {
   if (serverProcess && !serverProcess.killed) {
     serverProcess.kill();
@@ -223,7 +242,7 @@ app.whenReady().then(async () => {
     await createWindow();
   } catch (error) {
     console.error(
-      "[FOGA] Error iniciando aplicación:",
+      "[FOGA] Error iniciando aplicaciÃ³n:",
       error
     );
 
@@ -245,3 +264,4 @@ app.on("before-quit", () => {
   stopLocalServer();
   database.closeDatabase();
 });
+

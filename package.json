@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "electron": "electron electron/main.cjs"
+    "electron": "electron electron/main.cjs",
+    "desktop:build": "npm run build && electron-builder --win nsis",
+    "desktop:dir": "npm run build && electron-builder --dir"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -77,6 +79,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -88,5 +91,44 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5"
+  },
+  "productName": "FOGA Eventos",
+  "version": "1.0.0",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "uy.foga.eventos",
+    "productName": "FOGA Eventos",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".output",
+        "to": ".output"
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "FOGA-Eventos-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FOGA Eventos"
+    }
   }
 }
