@@ -1,9 +1,81 @@
 const { app, BrowserWindow } = require("electron");
+const { spawn } = require("child_process");
 const path = require("path");
+const http = require("http");
 
-let mainWindow;
+const HOST = "127.0.0.1";
+const PORT = 3000;
+const APP_URL = `http://${HOST}:${PORT}`;
 
-function createWindow() {
+let mainWindow = null;
+let serverProcess = null;
+
+function waitForServer(url, timeoutMs = 15000) {
+  const startedAt = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve();
+      });
+
+      req.on("error", () => {
+        if (Date.now() - startedAt >= timeoutMs) {
+          reject(new Error("FOGA no pudo iniciar el servidor local."));
+          return;
+        }
+
+        setTimeout(check, 250);
+      });
+
+      req.setTimeout(1000, () => {
+        req.destroy();
+      });
+    };
+
+    check();
+  });
+}
+
+function startLocalServer() {
+  const serverEntry = path.join(
+    __dirname,
+    "..",
+    ".output",
+    "server",
+    "index.mjs"
+  );
+
+  serverProcess = spawn(process.execPath, [serverEntry], {
+    env: {
+      ...process.env,
+      HOST,
+      PORT: String(PORT),
+      ELECTRON_RUN_AS_NODE: "1",
+    },
+    stdio: "inherit",
+    windowsHide: true,
+  });
+
+  serverProcess.on("exit", () => {
+    serverProcess = null;
+  });
+}
+
+function stopLocalServer() {
+  if (serverProcess && !serverProcess.killed) {
+    serverProcess.kill();
+  }
+
+  serverProcess = null;
+}
+
+async function createWindow() {
+  startLocalServer();
+
+  await waitForServer(APP_URL);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -17,26 +89,35 @@ function createWindow() {
     },
   });
 
-  // Primera prueba: Electron muestra la app que ejecuta Vite localmente.
-  mainWindow.loadURL("http://localhost:8080");
+  await mainWindow.loadURL(APP_URL);
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
   });
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+app.whenReady().then(async () => {
+  try {
+    await createWindow();
+  } catch (error) {
+    console.error(error);
+    stopLocalServer();
+    app.quit();
+  }
 });
 
 app.on("window-all-closed", () => {
+  stopLocalServer();
+
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  stopLocalServer();
 });
