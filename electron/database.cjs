@@ -36,8 +36,22 @@ function closeDatabase() {
     db = null;
   }
 }
+function pingDatabase() {
+  if (!db) {
+    throw new Error("La base de datos no está abierta.");
+  }
 
+  const row = db
+    .prepare("SELECT value FROM app_meta WHERE key = ?")
+    .get("schema_version");
+
+  return {
+    ok: true,
+    schemaVersion: row?.value ?? null,
+  };
+}
 module.exports = {
   openDatabase,
   closeDatabase,
+  pingDatabase,
 };

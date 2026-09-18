@@ -1,8 +1,13 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
-const { openDatabase, closeDatabase } = require("./database.cjs");
+
+const {
+  openDatabase,
+  closeDatabase,
+  pingDatabase,
+} = require("./database.cjs");
 
 const HOST = "127.0.0.1";
 const PORT = 3000;
@@ -85,29 +90,44 @@ async function createWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription) => {
+      console.error(
+        "[FOGA] Error cargando ventana:",
+        errorCode,
+        errorDescription
+      );
+    }
+  );
+
   await mainWindow.loadURL(APP_URL);
 
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-  });
+  mainWindow.show();
 
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
+ipcMain.handle("database:ping", () => {
+  return pingDatabase();
+});
+
 app.whenReady().then(async () => {
   try {
     openDatabase(app.getPath("userData"));
     await createWindow();
   } catch (error) {
-    console.error(error);
+    console.error("[FOGA] Error iniciando aplicación:", error);
     stopLocalServer();
+    closeDatabase();
     app.quit();
   }
 });
