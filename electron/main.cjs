@@ -2,6 +2,7 @@ const { app, BrowserWindow } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
+const { openDatabase, closeDatabase } = require("./database.cjs");
 
 const HOST = "127.0.0.1";
 const PORT = 3000;
@@ -102,6 +103,7 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   try {
+    openDatabase(app.getPath("userData"));
     await createWindow();
   } catch (error) {
     console.error(error);
@@ -120,4 +122,5 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   stopLocalServer();
+  closeDatabase();
 });
