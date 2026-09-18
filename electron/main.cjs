@@ -7,6 +7,7 @@ const {
   openDatabase,
   closeDatabase,
   pingDatabase,
+  inspectDatabase,
 } = require("./database.cjs");
 
 const HOST = "127.0.0.1";
@@ -118,6 +119,10 @@ async function createWindow() {
 
 ipcMain.handle("database:ping", () => {
   return pingDatabase();
+});
+
+ipcMain.handle("database:inspect", () => {
+  return inspectDatabase();
 });
 
 app.whenReady().then(async () => {
