@@ -3,12 +3,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
 
-const {
-  openDatabase,
-  closeDatabase,
-  pingDatabase,
-  inspectDatabase,
-} = require("./database.cjs");
+const database = require("./database.cjs");
 
 const HOST = "127.0.0.1";
 const PORT = 3000;
@@ -29,7 +24,9 @@ function waitForServer(url, timeoutMs = 15000) {
 
       req.on("error", () => {
         if (Date.now() - startedAt >= timeoutMs) {
-          reject(new Error("FOGA no pudo iniciar el servidor local."));
+          reject(
+            new Error("FOGA no pudo iniciar el servidor local.")
+          );
           return;
         }
 
@@ -78,6 +75,105 @@ function stopLocalServer() {
   serverProcess = null;
 }
 
+function registerDatabaseHandlers() {
+  ipcMain.handle("database:ping", () => {
+    return database.pingDatabase();
+  });
+
+  ipcMain.handle("database:inspect", () => {
+    return database.inspectDatabase();
+  });
+
+  ipcMain.handle("database:listProducts", () => {
+    return database.listProducts();
+  });
+
+  ipcMain.handle("database:saveProduct", (_event, product) => {
+    return database.saveProduct(product);
+  });
+
+  ipcMain.handle("database:getOpenSession", () => {
+    return database.getOpenSession();
+  });
+
+  ipcMain.handle("database:listSessions", () => {
+    return database.listSessions();
+  });
+
+  ipcMain.handle("database:openSession", (_event, label) => {
+    return database.openSession(label);
+  });
+
+  ipcMain.handle("database:closeSession", (_event, sessionId) => {
+    return database.closeSession(sessionId);
+  });
+
+  ipcMain.handle(
+    "database:nextOrderNumber",
+    (_event, sessionId) => {
+      return database.nextOrderNumber(sessionId);
+    }
+  );
+
+  ipcMain.handle("database:confirmSale", (_event, input) => {
+    return database.confirmSale(input);
+  });
+
+  ipcMain.handle("database:listOrders", (_event, sessionId) => {
+    return database.listOrders(sessionId);
+  });
+
+  ipcMain.handle(
+    "database:listOrderItems",
+    (_event, orderId) => {
+      return database.listOrderItems(orderId);
+    }
+  );
+
+  ipcMain.handle(
+    "database:markPrinted",
+    (_event, orderId, ok) => {
+      return database.markPrinted(orderId, ok);
+    }
+  );
+
+  ipcMain.handle(
+    "database:voidOrder",
+    (_event, orderId, reason) => {
+      return database.voidOrder(orderId, reason);
+    }
+  );
+
+  ipcMain.handle(
+    "database:sessionTotals",
+    (_event, sessionId) => {
+      return database.sessionTotals(sessionId);
+    }
+  );
+
+  ipcMain.handle("database:getSettings", () => {
+    return database.getSettings();
+  });
+
+  ipcMain.handle(
+    "database:saveSettings",
+    (_event, settings) => {
+      return database.saveSettings(settings);
+    }
+  );
+
+  ipcMain.handle("database:exportBackup", () => {
+    return database.exportBackup();
+  });
+
+  ipcMain.handle(
+    "database:importBackup",
+    (_event, backup) => {
+      return database.importBackup(backup);
+    }
+  );
+}
+
 async function createWindow() {
   startLocalServer();
 
@@ -90,6 +186,7 @@ async function createWindow() {
     minHeight: 700,
     show: false,
     autoHideMenuBar: true,
+
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -117,22 +214,21 @@ async function createWindow() {
   });
 }
 
-ipcMain.handle("database:ping", () => {
-  return pingDatabase();
-});
-
-ipcMain.handle("database:inspect", () => {
-  return inspectDatabase();
-});
+registerDatabaseHandlers();
 
 app.whenReady().then(async () => {
   try {
-    openDatabase(app.getPath("userData"));
+    database.openDatabase(app.getPath("userData"));
+
     await createWindow();
   } catch (error) {
-    console.error("[FOGA] Error iniciando aplicación:", error);
+    console.error(
+      "[FOGA] Error iniciando aplicación:",
+      error
+    );
+
     stopLocalServer();
-    closeDatabase();
+    database.closeDatabase();
     app.quit();
   }
 });
@@ -147,5 +243,5 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   stopLocalServer();
-  closeDatabase();
+  database.closeDatabase();
 });

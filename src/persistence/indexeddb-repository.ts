@@ -268,4 +268,10 @@ export function validateBackup(data: unknown): data is BackupFile {
   );
 }
 
-export const repository: Repository = new IndexedDbRepository();
+import { ElectronRepository } from "./electron-repository";
+import { isElectronDatabaseAvailable } from "./electron-api";
+
+export const repository: Repository =
+  isElectronDatabaseAvailable()
+    ? new ElectronRepository()
+    : new IndexedDbRepository();
